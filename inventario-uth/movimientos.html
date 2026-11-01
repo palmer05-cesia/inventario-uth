@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movimientos · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="menu"></aside>
+
+    <main>
+      <div class="encabezado">
+        <div>
+          <h1>Movimientos</h1>
+          <p class="sub">Quién movió qué y cuándo. Estos registros no se pueden editar ni borrar.</p>
+        </div>
+        <span class="rol" id="rol"></span>
+      </div>
+
+      <div class="acciones">
+        <select id="filtro" aria-label="Filtrar por tipo" style="width:auto">
+          <option value="">Entradas y salidas</option>
+          <option value="entrada">Solo entradas</option>
+          <option value="salida">Solo salidas</option>
+        </select>
+      </div>
+
+      <div class="contenedor-tabla">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th class="numero">Cantidad</th>
+              <th>Registró</th>
+              <th>Nota</th>
+            </tr>
+          </thead>
+          <tbody id="tabla"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div id="aviso" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    (async () => {
+      const perfil = await exigirSesion();
+      if (!perfil) return;
+      document.getElementById('rol').textContent = 'Rol: ' + NOMBRES_ROL[perfil.rol];
+      await cargar();
+    })();
+
+    document.getElementById('filtro').addEventListener('change', cargar);
+
+    async function cargar() {
+      let consulta = sb
+        .from('movimientos')
+        .select('id, tipo, cantidad, nota, fecha, productos(codigo, nombre), perfiles(nombre)')
+        .order('fecha', { ascending: false })
+        .limit(100);
+
+      const filtro = document.getElementById('filtro').value;
+      if (filtro) consulta = consulta.eq('tipo', filtro);
+
+      const { data, error } = await consulta;
+      if (error) return mostrarAviso('No se pudieron cargar los movimientos.', 'error');
+
+      const tabla = document.getElementById('tabla');
+      if (data.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="6" class="vacio">Aún no hay movimientos registrados.</td></tr>';
+        return;
+      }
+
+      tabla.innerHTML = data.map((m) => `
+        <tr>
+          <td>${formatoFecha(m.fecha)}</td>
+          <td>${escaparHTML(m.productos?.codigo)} · ${escaparHTML(m.productos?.nombre)}</td>
+          <td><span class="estado ${m.tipo}">${m.tipo === 'entrada' ? 'Entrada' : 'Salida'}</span></td>
+          <td class="numero">${m.cantidad}</td>
+          <td>${escaparHTML(m.perfiles?.nombre)}</td>
+          <td>${escaparHTML(m.nota || '')}</td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

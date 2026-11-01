@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Usuarios · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="menu"></aside>
+
+    <main>
+      <div class="encabezado">
+        <div>
+          <h1>Usuarios</h1>
+          <p class="sub">Cambia el nombre o el rol de cada persona. Las cuentas nuevas se crean en Supabase y aparecen aquí como Consulta.</p>
+        </div>
+        <span class="rol" id="rol"></span>
+      </div>
+
+      <div class="contenedor-tabla">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div id="aviso" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    let yo = null;
+
+    (async () => {
+      yo = await exigirSesion(['admin']);  // si no es admin, lo regresa a Productos
+      if (!yo) return;
+      document.getElementById('rol').textContent = 'Rol: ' + NOMBRES_ROL[yo.rol];
+      await cargar();
+    })();
+
+    async function cargar() {
+      const { data, error } = await sb
+        .from('perfiles')
+        .select('id, nombre, correo, rol')
+        .order('nombre');
+
+      if (error) return mostrarAviso('No se pudieron cargar los usuarios.', 'error');
+
+      document.getElementById('tabla').innerHTML = data.map((u) => `
+        <tr data-id="${u.id}">
+          <td><input type="text" value="${escaparHTML(u.nombre)}" aria-label="Nombre" data-campo="nombre"></td>
+          <td>${escaparHTML(u.correo)}</td>
+          <td>
+            <select aria-label="Rol" data-campo="rol" ${u.id === yo.id ? 'disabled title="No puedes quitarte el rol de administrador"' : ''}>
+              ${Object.entries(NOMBRES_ROL).map(([valor, texto]) =>
+                `<option value="${valor}" ${u.rol === valor ? 'selected' : ''}>${texto}</option>`
+              ).join('')}
+            </select>
+          </td>
+          <td><button class="boton" type="button" data-guardar>Guardar cambios</button></td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('[data-guardar]').forEach((boton) =>
+        boton.addEventListener('click', () => guardar(boton.closest('tr')))
+      );
+    }
+
+    async function guardar(fila) {
+      const cambios = { nombre: fila.querySelector('[data-campo="nombre"]').value.trim() };
+      const selector = fila.querySelector('[data-campo="rol"]');
+      if (!selector.disabled) cambios.rol = selector.value;
+
+      if (!cambios.nombre) return mostrarAviso('El nombre no puede quedar vacío.', 'error');
+
+      const { error } = await sb.from('perfiles').update(cambios).eq('id', fila.dataset.id);
+      if (error) return mostrarAviso('No se pudieron guardar los cambios.', 'error');
+      mostrarAviso('Cambios guardados');
+    }
+  </script>
+</body>
+</html>

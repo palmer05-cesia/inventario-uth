@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Productos · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="menu"></aside>
+
+    <main>
+      <div class="encabezado">
+        <div>
+          <h1 id="saludo">Cargando…</h1>
+          <p class="sub" id="resumen"></p>
+        </div>
+        <span class="rol" id="rol"></span>
+      </div>
+
+      <div class="acciones" id="acciones" hidden>
+        <button class="boton" type="button" data-tipo="entrada">+ Registrar entrada</button>
+        <button class="boton secundario" type="button" data-tipo="salida">− Registrar salida</button>
+        <button class="boton secundario" type="button" id="nuevo-producto" hidden>Nuevo producto</button>
+      </div>
+
+      <div class="contenedor-tabla">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Producto</th>
+              <th class="numero">Hay</th>
+              <th class="numero">Mínimo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Registrar entrada o salida -->
+  <dialog id="dialogo-movimiento">
+    <form id="form-movimiento">
+      <h2 id="titulo-movimiento">Registrar entrada</h2>
+      <div class="campo">
+        <label for="mov-producto">Producto</label>
+        <select id="mov-producto" required></select>
+      </div>
+      <div class="campo">
+        <label for="mov-cantidad">Cantidad</label>
+        <input id="mov-cantidad" type="number" min="1" step="1" required>
+      </div>
+      <div class="campo">
+        <label for="mov-nota">Nota (opcional)</label>
+        <input id="mov-nota" type="text" maxlength="200" placeholder="Ej.: compra a proveedor, venta, daño">
+      </div>
+      <div class="botones-dialogo">
+        <button class="boton secundario" type="button" data-cerrar>Cancelar</button>
+        <button class="boton" type="submit" id="guardar-movimiento">Registrar entrada</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Nuevo producto (solo admin) -->
+  <dialog id="dialogo-producto">
+    <form id="form-producto">
+      <h2>Nuevo producto</h2>
+      <div class="campo">
+        <label for="prod-codigo">Código</label>
+        <input id="prod-codigo" type="text" required placeholder="P-0400">
+      </div>
+      <div class="campo">
+        <label for="prod-nombre">Nombre</label>
+        <input id="prod-nombre" type="text" required>
+      </div>
+      <div class="campo">
+        <label for="prod-minimo">Mínimo antes de pedir más</label>
+        <input id="prod-minimo" type="number" min="0" step="1" value="5" required>
+      </div>
+      <div class="botones-dialogo">
+        <button class="boton secundario" type="button" data-cerrar>Cancelar</button>
+        <button class="boton" type="submit">Crear producto</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="aviso" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    let productos = [];
+    let tipoActual = 'entrada';
+
+    (async () => {
+      const perfil = await exigirSesion();
+      if (!perfil) return;
+
+      const hora = new Date().getHours();
+      const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+      document.getElementById('saludo').textContent = `${saludo}, ${perfil.nombre}`;
+      document.getElementById('rol').textContent = 'Rol: ' + NOMBRES_ROL[perfil.rol];
+
+      // Consulta solo mira; bodega y admin registran; solo admin crea productos
+      if (perfil.rol !== 'consulta') document.getElementById('acciones').hidden = false;
+      if (perfil.rol === 'admin') document.getElementById('nuevo-producto').hidden = false;
+
+      await cargarProductos();
+    })();
+
+    async function cargarProductos() {
+      const { data, error } = await sb
+        .from('productos')
+        .select('id, codigo, nombre, cantidad, minimo')
+        .order('codigo');
+
+      if (error) return mostrarAviso('No se pudieron cargar los productos.', 'error');
+      productos = data;
+
+      const porAgotarse = productos.filter((p) => p.cantidad < p.minimo).length;
+      document.getElementById('resumen').textContent =
+        porAgotarse === 0 ? 'Todos los productos tienen existencias suficientes'
+        : porAgotarse === 1 ? '1 producto está por agotarse'
+        : `${porAgotarse} productos están por agotarse`;
+
+      const tabla = document.getElementById('tabla');
+      if (productos.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="5" class="vacio">Todavía no hay productos. Crea el primero con «Nuevo producto».</td></tr>';
+        return;
+      }
+
+      tabla.innerHTML = productos.map((p) => {
+        const bajo = p.cantidad < p.minimo;
+        return `
+          <tr>
+            <td class="codigo-producto">${escaparHTML(p.codigo)}</td>
+            <td>${escaparHTML(p.nombre)}</td>
+            <td class="numero">${p.cantidad}</td>
+            <td class="numero">${p.minimo}</td>
+            <td><span class="estado ${bajo ? 'pedir' : 'bien'}">${bajo ? 'Pedir más' : 'Bien'}</span></td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('mov-producto').innerHTML = productos.map((p) =>
+        `<option value="${p.id}">${escaparHTML(p.codigo)} · ${escaparHTML(p.nombre)} (hay ${p.cantidad})</option>`
+      ).join('');
+    }
+
+    // ---------- Movimientos ----------
+    const dialogoMov = document.getElementById('dialogo-movimiento');
+
+    document.querySelectorAll('[data-tipo]').forEach((boton) => {
+      boton.addEventListener('click', () => {
+        if (productos.length === 0) return mostrarAviso('Primero crea un producto.', 'error');
+        tipoActual = boton.dataset.tipo;
+        const texto = tipoActual === 'entrada' ? 'Registrar entrada' : 'Registrar salida';
+        document.getElementById('titulo-movimiento').textContent = texto;
+        document.getElementById('guardar-movimiento').textContent = texto;
+        document.getElementById('form-movimiento').reset();
+        dialogoMov.showModal();
+      });
+    });
+
+    document.getElementById('form-movimiento').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { error } = await sb.from('movimientos').insert({
+        producto_id: Number(document.getElementById('mov-producto').value),
+        tipo: tipoActual,
+        cantidad: Number(document.getElementById('mov-cantidad').value),
+        nota: document.getElementById('mov-nota').value.trim() || null
+      });
+
+      if (error) {
+        const sinExistencia = error.message.includes('No hay suficiente existencia');
+        return mostrarAviso(sinExistencia ? error.message : 'No se pudo registrar. Revisa tu rol o tu conexión.', 'error');
+      }
+
+      dialogoMov.close();
+      mostrarAviso(tipoActual === 'entrada' ? 'Entrada registrada' : 'Salida registrada');
+      await cargarProductos();
+    });
+
+    // ---------- Nuevo producto ----------
+    const dialogoProd = document.getElementById('dialogo-producto');
+
+    document.getElementById('nuevo-producto').addEventListener('click', () => {
+      document.getElementById('form-producto').reset();
+      dialogoProd.showModal();
+    });
+
+    document.getElementById('form-producto').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { error } = await sb.from('productos').insert({
+        codigo: document.getElementById('prod-codigo').value.trim(),
+        nombre: document.getElementById('prod-nombre').value.trim(),
+        minimo: Number(document.getElementById('prod-minimo').value)
+      });
+
+      if (error) {
+        const repetido = error.code === '23505';
+        return mostrarAviso(repetido ? 'Ya existe un producto con ese código.' : 'No se pudo crear el producto.', 'error');
+      }
+
+      dialogoProd.close();
+      mostrarAviso('Producto creado. Registra una entrada para cargar sus existencias.');
+      await cargarProductos();
+    });
+
+    document.querySelectorAll('[data-cerrar]').forEach((b) =>
+      b.addEventListener('click', () => b.closest('dialog').close())
+    );
+  </script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+:root {
+  --fondo: #f4f7fc;
+  --fondo-tinte: #dceaff;
+  --panel: #ffffff;
+  --borde: #e3e8f2;
+  --texto: #25222e;
+  --texto-suave: #6b6879;
+  --azul: #3a5fae;
+  --azul-claro: #dce9fd;
+  --amarillo: #fff1c4;
+  --amarillo-texto: #7a5900;
+  --verde: #dcf3e3;
+  --verde-texto: #2b7a4b;
+  --rojo: #fde1e4;
+  --rojo-texto: #b3263a;
+  --radio: 14px;
+  --titulo: 'Fredoka', 'Trebuchet MS', sans-serif;
+  --cuerpo: 'Nunito', 'Segoe UI', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--cuerpo);
+  color: var(--texto);
+  background: linear-gradient(180deg, var(--fondo-tinte) 0, var(--fondo) 260px);
+}
+
+h1, h2, .marca { font-family: var(--titulo); font-weight: 600; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; }
+p { margin: 0; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+
+/* ---------- Botones ---------- */
+
+.boton {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 1.3rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--azul-claro);
+  color: var(--azul);
+}
+.boton:hover { filter: brightness(0.96); }
+.boton:disabled { opacity: 0.6; cursor: wait; }
+.boton.secundario { background: #f0f1f5; color: var(--texto); }
+.boton.ancho { width: 100%; }
+
+.boton-texto {
+  border: 0;
+  background: none;
+  color: var(--texto-suave);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ---------- Formularios ---------- */
+
+label { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 0.35rem; }
+
+input, select, textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.campo { margin-bottom: 1rem; }
+
+/* ---------- Pantallas de acceso ---------- */
+
+.acceso {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.tarjeta-acceso {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+}
+.tarjeta-acceso form { text-align: left; margin-top: 1.5rem; }
+.tarjeta-acceso .ayuda { color: var(--texto-suave); margin-top: 0.5rem; line-height: 1.5; }
+
+.candado {
+  width: 56px; height: 56px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--amarillo);
+  color: var(--amarillo-texto);
+  display: grid; place-items: center;
+  font-size: 1.4rem;
+}
+
+.codigo { display: flex; gap: 0.45rem; justify-content: center; margin: 1.5rem 0 0.75rem; }
+.codigo input {
+  width: 44px; height: 52px;
+  padding: 0;
+  text-align: center;
+  font-size: 1.35rem;
+  border: 2px solid var(--borde);
+}
+.codigo input:focus { border-color: var(--amarillo-texto); outline: none; }
+
+.contador { color: var(--amarillo-texto); font-weight: 700; font-size: 0.85rem; margin-bottom: 1.25rem; }
+
+.qr { margin: 1rem auto; width: 190px; }
+.qr img { width: 100%; }
+.secreto { font-family: monospace; font-size: 0.8rem; word-break: break-all; color: var(--texto-suave); }
+
+/* ---------- Estructura de la app ---------- */
+
+.app { display: grid; grid-template-columns: 210px 1fr; min-height: 100vh; }
+
+#menu {
+  background: #f9fafc;
+  border-right: 1px solid var(--borde);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+#menu .marca { font-size: 1.15rem; padding: 0 0.75rem 1.25rem; }
+#menu nav { display: flex; flex-direction: column; gap: 0.25rem; }
+#menu nav a {
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  color: var(--texto);
+  text-decoration: none;
+}
+#menu nav a:hover { background: #eef2f9; }
+#menu nav a.activo { background: var(--azul-claro); color: var(--azul); font-weight: 700; }
+.menu-pie { margin-top: auto; padding: 0 0.75rem; }
+.menu-usuario { font-weight: 700; margin-bottom: 0.35rem; }
+
+main { padding: 2rem; max-width: 1050px; width: 100%; }
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.encabezado .sub { color: var(--texto-suave); margin-top: 0.25rem; }
+
+.rol {
+  background: var(--azul-claro);
+  color: var(--azul);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; }
+
+/* ---------- Tablas ---------- */
+
+.contenedor-tabla {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  overflow-x: auto;
+}
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--borde); }
+th { font-size: 0.85rem; color: var(--texto-suave); background: #fafbfd; }
+tr:last-child td { border-bottom: 0; }
+td.numero, th.numero { text-align: right; }
+td.codigo-producto { font-family: monospace; }
+.vacio { padding: 2rem; text-align: center; color: var(--texto-suave); }
+
+.estado {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.estado.bien { background: var(--verde); color: var(--verde-texto); }
+.estado.pedir { background: var(--rojo); color: var(--rojo-texto); }
+.estado.entrada { background: var(--verde); color: var(--verde-texto); }
+.estado.salida { background: var(--amarillo); color: var(--amarillo-texto); }
+
+.seccion { margin-top: 2rem; }
+.seccion h2 { margin-bottom: 0.75rem; }
+
+/* ---------- Ventanas (dialog) ---------- */
+
+dialog {
+  border: 0;
+  border-radius: 18px;
+  padding: 1.75rem;
+  width: min(420px, 92vw);
+}
+dialog::backdrop { background: rgba(37, 34, 46, 0.35); }
+dialog h2 { margin-bottom: 1.25rem; }
+.botones-dialogo { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.5rem; }
+
+/* ---------- Avisos ---------- */
+
+.aviso {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  max-width: 90vw;
+  z-index: 10;
+}
+.aviso.ok { background: var(--verde); color: var(--verde-texto); }
+.aviso.error { background: var(--rojo); color: var(--rojo-texto); }
+
+.error-texto { color: var(--rojo-texto); font-weight: 700; margin-top: 0.75rem; min-height: 1.2em; }
+
+/* ---------- Celular ---------- */
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  #menu { border-right: 0; border-bottom: 1px solid var(--borde); padding: 1rem; }
+  #menu nav { flex-direction: row; flex-wrap: wrap; }
+  .menu-pie { margin-top: 1rem; }
+  main { padding: 1.25rem; }
+  .encabezado { flex-direction: column; }
+}

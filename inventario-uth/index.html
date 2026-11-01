@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="acceso">
+    <div class="tarjeta-acceso">
+      <div class="candado" aria-hidden="true">🔒</div>
+      <h1>Inventario</h1>
+      <p class="ayuda">Entra con tu correo y contraseña. Después te pediremos el código de tu celular.</p>
+
+      <form id="formulario">
+        <div class="campo">
+          <label for="correo">Correo</label>
+          <input id="correo" type="email" autocomplete="email" required>
+        </div>
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <input id="clave" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="boton ancho" type="submit" id="entrar">Continuar</button>
+        <p class="error-texto" id="error" role="alert"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+    // Si ya tiene sesión, lo mandamos al paso que le falta
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      const { data: nivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      location.href = nivel.currentLevel === 'aal2' ? 'inventario.html' : 'verificar.html';
+    })();
+
+    document.getElementById('formulario').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const boton = document.getElementById('entrar');
+      const error = document.getElementById('error');
+      error.textContent = '';
+      boton.disabled = true;
+
+      const { error: fallo } = await sb.auth.signInWithPassword({
+        email: document.getElementById('correo').value.trim(),
+        password: document.getElementById('clave').value
+      });
+
+      boton.disabled = false;
+      if (fallo) {
+        error.textContent = 'Correo o contraseña incorrectos.';
+        return;
+      }
+      location.href = 'verificar.html';
+    });
+  </script>
+</body>
+</html>

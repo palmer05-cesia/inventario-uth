@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verificar código · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="acceso">
+    <div class="tarjeta-acceso">
+      <div class="candado" aria-hidden="true">🔒</div>
+      <h1 id="saludo">Un paso más</h1>
+      <p class="ayuda" id="instruccion">Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
+
+      <!-- Solo se muestra la primera vez -->
+      <div id="registro" hidden>
+        <div class="qr"><img id="imagen-qr" alt="Código QR para la app autenticadora"></div>
+        <p class="ayuda">¿No puedes escanear? Escribe esta clave en la app:</p>
+        <p class="secreto" id="secreto"></p>
+      </div>
+
+      <form id="formulario">
+        <div class="codigo" id="casillas">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 1" autocomplete="one-time-code">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 3">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 5">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 6">
+        </div>
+        <p class="contador" id="contador" style="text-align:center"></p>
+        <button class="boton ancho" type="submit" id="verificar">Verificar y entrar</button>
+        <p class="error-texto" id="error" role="alert" style="text-align:center"></p>
+      </form>
+
+      <button type="button" class="boton-texto" id="salir" style="margin-top:1rem">Usar otra cuenta</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+    let factorId = null;
+    const casillas = [...document.querySelectorAll('#casillas input')];
+
+    // ---------- Preparar la pantalla ----------
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return (location.href = 'index.html');
+
+      const { data: nivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (nivel.currentLevel === 'aal2') return (location.href = 'inventario.html');
+
+      const nombre = session.user.user_metadata?.nombre || session.user.email.split('@')[0];
+      document.getElementById('saludo').textContent = `Hola, ${nombre}. Un paso más`;
+
+      const { data: factores } = await sb.auth.mfa.listFactors();
+      const verificado = factores.totp.find((f) => f.status === 'verified');
+
+      if (verificado) {
+        factorId = verificado.id;
+      } else {
+        await prepararRegistro(factores.all);
+      }
+      casillas[0].focus();
+    })();
+
+    // Primera vez: genera el QR para vincular la app autenticadora
+    async function prepararRegistro(todos) {
+      // Borra intentos anteriores que no se terminaron
+      for (const f of todos.filter((f) => f.status === 'unverified')) {
+        await sb.auth.mfa.unenroll({ factorId: f.id });
+      }
+
+      const { data, error } = await sb.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'Inventario UTH ' + Date.now()
+      });
+      if (error) {
+        document.getElementById('error').textContent = 'No se pudo generar el código QR. Recarga la página.';
+        return;
+      }
+
+      factorId = data.id;
+      document.getElementById('imagen-qr').src = data.totp.qr_code;
+      document.getElementById('secreto').textContent = data.totp.secret;
+      document.getElementById('registro').hidden = false;
+      document.getElementById('instruccion').textContent =
+        'Escanea este código con Google Authenticator o Microsoft Authenticator y escribe los 6 dígitos que aparecen.';
+    }
+
+    // ---------- Casillas del código ----------
+    casillas.forEach((casilla, i) => {
+      casilla.addEventListener('input', () => {
+        casilla.value = casilla.value.replace(/\D/g, '');
+        if (casilla.value && i < 5) casillas[i + 1].focus();
+      });
+      casilla.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !casilla.value && i > 0) casillas[i - 1].focus();
+      });
+      casilla.addEventListener('paste', (e) => {
+        const numeros = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        if (!numeros) return;
+        e.preventDefault();
+        numeros.split('').forEach((n, j) => (casillas[j].value = n));
+        casillas[Math.min(numeros.length, 5)].focus();
+      });
+    });
+
+    // ---------- Contador de 30 segundos ----------
+    function actualizarContador() {
+      const restante = 30 - (Math.floor(Date.now() / 1000) % 30);
+      document.getElementById('contador').textContent = `El código cambia en ${restante} s`;
+    }
+    actualizarContador();
+    setInterval(actualizarContador, 1000);
+
+    // ---------- Verificar ----------
+    document.getElementById('formulario').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const error = document.getElementById('error');
+      const codigo = casillas.map((c) => c.value).join('');
+      error.textContent = '';
+
+      if (codigo.length !== 6) {
+        error.textContent = 'Escribe los 6 dígitos.';
+        return;
+      }
+
+      const boton = document.getElementById('verificar');
+      boton.disabled = true;
+      const { error: fallo } = await sb.auth.mfa.challengeAndVerify({ factorId, code: codigo });
+      boton.disabled = false;
+
+      if (fallo) {
+        error.textContent = 'Código incorrecto o vencido. Escribe el que aparece ahora en tu app.';
+        casillas.forEach((c) => (c.value = ''));
+        casillas[0].focus();
+        return;
+      }
+      location.href = 'inventario.html';
+    });
+
+    document.getElementById('salir').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

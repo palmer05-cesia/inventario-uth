@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reportes · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="menu"></aside>
+
+    <main>
+      <div class="encabezado">
+        <div>
+          <h1>Reportes</h1>
+          <p class="sub">Qué hay que pedir y cuánto se ha movido en los últimos 30 días.</p>
+        </div>
+        <span class="rol" id="rol"></span>
+      </div>
+
+      <section>
+        <h2 style="margin-bottom:.75rem">Productos por pedir</h2>
+        <div class="contenedor-tabla">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th class="numero">Hay</th>
+                <th class="numero">Mínimo</th>
+                <th class="numero">Faltan para el mínimo</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-pedir"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="seccion">
+        <h2>Movimiento de los últimos 30 días</h2>
+        <div class="contenedor-tabla">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="numero">Entraron</th>
+                <th class="numero">Salieron</th>
+                <th class="numero">Hay ahora</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-mes"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="aviso" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    (async () => {
+      const perfil = await exigirSesion();
+      if (!perfil) return;
+      document.getElementById('rol').textContent = 'Rol: ' + NOMBRES_ROL[perfil.rol];
+
+      const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [prod, mov] = await Promise.all([
+        sb.from('productos').select('id, codigo, nombre, cantidad, minimo').order('codigo'),
+        sb.from('movimientos').select('producto_id, tipo, cantidad').gte('fecha', hace30)
+      ]);
+
+      if (prod.error || mov.error) return mostrarAviso('No se pudieron cargar los reportes.', 'error');
+
+      // Productos por pedir
+      const porPedir = prod.data.filter((p) => p.cantidad < p.minimo);
+      document.getElementById('tabla-pedir').innerHTML = porPedir.length === 0
+        ? '<tr><td colspan="5" class="vacio">No hay productos por debajo del mínimo.</td></tr>'
+        : porPedir.map((p) => `
+          <tr>
+            <td class="codigo-producto">${escaparHTML(p.codigo)}</td>
+            <td>${escaparHTML(p.nombre)}</td>
+            <td class="numero">${p.cantidad}</td>
+            <td class="numero">${p.minimo}</td>
+            <td class="numero"><span class="estado pedir">${p.minimo - p.cantidad}</span></td>
+          </tr>`).join('');
+
+      // Totales del mes por producto
+      const totales = {};
+      mov.data.forEach((m) => {
+        totales[m.producto_id] ??= { entrada: 0, salida: 0 };
+        totales[m.producto_id][m.tipo] += m.cantidad;
+      });
+
+      document.getElementById('tabla-mes').innerHTML = prod.data.length === 0
+        ? '<tr><td colspan="4" class="vacio">Todavía no hay productos.</td></tr>'
+        : prod.data.map((p) => {
+          const t = totales[p.id] || { entrada: 0, salida: 0 };
+          return `
+            <tr>
+              <td>${escaparHTML(p.codigo)} · ${escaparHTML(p.nombre)}</td>
+              <td class="numero">${t.entrada}</td>
+              <td class="numero">${t.salida}</td>
+              <td class="numero">${p.cantidad}</td>
+            </tr>`;
+        }).join('');
+    })();
+  </script>
+</body>
+</html>
