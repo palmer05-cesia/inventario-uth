@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Verificar código · Inventario</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap">
   <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body>
   <div class="acceso">
     <div class="tarjeta-acceso">
-      <div class="candado" aria-hidden="true">🔒</div>
+      <div class="candado" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
       <h1 id="saludo">Un paso más</h1>
       <p class="ayuda" id="instruccion">Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
 
@@ -52,7 +52,7 @@
       if (!session) return (location.href = 'index.html');
 
       const { data: nivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (nivel.currentLevel === 'aal2') return (location.href = 'inventario.html');
+      if (nivel.currentLevel === 'aal2') return (location.href = 'panel.html');
 
       const nombre = session.user.user_metadata?.nombre || session.user.email.split('@')[0];
       document.getElementById('saludo').textContent = `Hola, ${nombre}. Un paso más`;
@@ -141,7 +141,7 @@
         casillas[0].focus();
         return;
       }
-      location.href = 'inventario.html';
+      location.href = 'panel.html';
     });
 
     document.getElementById('salir').addEventListener('click', async () => {

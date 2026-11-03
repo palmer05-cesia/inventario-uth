@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel · Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="menu"></aside>
+
+    <main>
+      <div class="encabezado">
+        <div>
+          <h1 id="saludo">Cargando…</h1>
+          <p class="sub">Resumen general del inventario</p>
+        </div>
+      </div>
+
+      <div class="tarjetas">
+        <a class="tarjeta-dato indigo" href="inventario.html">
+          <span id="ico-productos"></span>
+          <span class="titulo">Productos</span>
+          <span class="valor" id="total-productos">–</span>
+        </a>
+        <a class="tarjeta-dato amarillo" href="reportes.html">
+          <span id="ico-alerta"></span>
+          <span class="titulo">Por agotarse</span>
+          <span class="valor" id="total-agotarse">–</span>
+        </a>
+        <a class="tarjeta-dato verde" href="movimientos.html">
+          <span id="ico-entrada"></span>
+          <span class="titulo">Entradas</span>
+          <span class="valor" id="total-entradas">–</span>
+        </a>
+        <a class="tarjeta-dato rojo" href="movimientos.html">
+          <span id="ico-salida"></span>
+          <span class="titulo">Salidas</span>
+          <span class="valor" id="total-salidas">–</span>
+        </a>
+      </div>
+
+      <div class="graficas">
+        <section class="panel">
+          <h2>Productos con más movimientos</h2>
+          <div class="lienzo"><canvas id="grafica-productos" aria-label="Productos con más movimientos"></canvas></div>
+        </section>
+        <section class="panel">
+          <h2>Entradas y salidas por día (últimos 14 días)</h2>
+          <div class="lienzo"><canvas id="grafica-dias" aria-label="Entradas y salidas por día"></canvas></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="aviso" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    const VERDE = '#ec4899';
+    const ROJO = '#8b5cf6';
+
+    document.getElementById('ico-productos').innerHTML = ICONOS.productos;
+    document.getElementById('ico-alerta').innerHTML = ICONOS.alerta;
+    document.getElementById('ico-entrada').innerHTML = ICONOS.entrada;
+    document.getElementById('ico-salida').innerHTML = ICONOS.salida;
+
+    (async () => {
+      const perfil = await exigirSesion();
+      if (!perfil) return;
+
+      const hora = new Date().getHours();
+      const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+      document.getElementById('saludo').textContent = `${saludo}, ${perfil.nombre}`;
+
+      const [prod, mov] = await Promise.all([
+        sb.from('productos').select('id, codigo, nombre, cantidad, minimo'),
+        sb.from('movimientos').select('producto_id, tipo, cantidad, fecha')
+      ]);
+
+      if (prod.error || mov.error) return mostrarAviso('No se pudo cargar el panel.', 'error');
+
+      const productos = prod.data;
+      const movimientos = mov.data;
+
+      // ---------- Tarjetas ----------
+      document.getElementById('total-productos').textContent = productos.length;
+      document.getElementById('total-agotarse').textContent = productos.filter((p) => p.cantidad < p.minimo).length;
+      document.getElementById('total-entradas').textContent = movimientos.filter((m) => m.tipo === 'entrada').length;
+      document.getElementById('total-salidas').textContent = movimientos.filter((m) => m.tipo === 'salida').length;
+
+      Chart.defaults.font.family = 'Nunito, Arial, sans-serif';
+      Chart.defaults.color = '#7a6474';
+
+      // ---------- Productos con más movimientos ----------
+      const porProducto = {};
+      movimientos.forEach((m) => {
+        porProducto[m.producto_id] ??= { entrada: 0, salida: 0 };
+        porProducto[m.producto_id][m.tipo] += m.cantidad;
+      });
+
+      const top = productos
+        .map((p) => ({ nombre: p.nombre, ...(porProducto[p.id] || { entrada: 0, salida: 0 }) }))
+        .filter((p) => p.entrada + p.salida > 0)
+        .sort((a, b) => (b.entrada + b.salida) - (a.entrada + a.salida))
+        .slice(0, 6);
+
+      new Chart(document.getElementById('grafica-productos'), {
+        type: 'bar',
+        data: {
+          labels: top.map((p) => p.nombre),
+          datasets: [
+            { label: 'Entradas', data: top.map((p) => p.entrada), backgroundColor: VERDE, borderRadius: 4 },
+            { label: 'Salidas', data: top.map((p) => p.salida), backgroundColor: ROJO, borderRadius: 4 }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { x: { beginAtZero: true, title: { display: true, text: 'Cantidad total' } } }
+        }
+      });
+
+      // ---------- Entradas y salidas por día ----------
+      const dias = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - i);
+        dias.push(d);
+      }
+      const clave = (d) => d.toLocaleDateString('en-CA');
+      const porDia = Object.fromEntries(dias.map((d) => [clave(d), { entrada: 0, salida: 0 }]));
+      movimientos.forEach((m) => {
+        const k = clave(new Date(m.fecha));
+        if (porDia[k]) porDia[k][m.tipo] += 1;
+      });
+
+      new Chart(document.getElementById('grafica-dias'), {
+        type: 'line',
+        data: {
+          labels: dias.map((d) => d.toLocaleDateString('es-HN', { day: '2-digit', month: 'short' })),
+          datasets: [
+            { label: 'Entradas', data: dias.map((d) => porDia[clave(d)].entrada), borderColor: VERDE, backgroundColor: VERDE, tension: 0 },
+            { label: 'Salidas', data: dias.map((d) => porDia[clave(d)].salida), borderColor: ROJO, backgroundColor: ROJO, tension: 0 }
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Movimientos' } } }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

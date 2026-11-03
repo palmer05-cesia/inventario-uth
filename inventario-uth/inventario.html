@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Productos · Inventario</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap">
   <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body>
@@ -24,7 +24,11 @@
       <div class="acciones" id="acciones" hidden>
         <button class="boton" type="button" data-tipo="entrada">+ Registrar entrada</button>
         <button class="boton secundario" type="button" data-tipo="salida">− Registrar salida</button>
-        <button class="boton secundario" type="button" id="nuevo-producto" hidden>Nuevo producto</button>
+        <button class="boton neutro" type="button" id="nuevo-producto" hidden>Nuevo producto</button>
+      </div>
+
+      <div class="acciones">
+        <input class="buscador" id="buscar" type="search" placeholder="Buscar por código o nombre" aria-label="Buscar producto">
       </div>
 
       <div class="contenedor-tabla">
@@ -61,7 +65,7 @@
         <input id="mov-nota" type="text" maxlength="200" placeholder="Ej.: compra a proveedor, venta, daño">
       </div>
       <div class="botones-dialogo">
-        <button class="boton secundario" type="button" data-cerrar>Cancelar</button>
+        <button class="boton neutro" type="button" data-cerrar>Cancelar</button>
         <button class="boton" type="submit" id="guardar-movimiento">Registrar entrada</button>
       </div>
     </form>
@@ -84,7 +88,7 @@
         <input id="prod-minimo" type="number" min="0" step="1" value="5" required>
       </div>
       <div class="botones-dialogo">
-        <button class="boton secundario" type="button" data-cerrar>Cancelar</button>
+        <button class="boton neutro" type="button" data-cerrar>Cancelar</button>
         <button class="boton" type="submit">Crear producto</button>
       </div>
     </form>
@@ -136,7 +140,24 @@
         return;
       }
 
-      tabla.innerHTML = productos.map((p) => {
+      pintarTabla();
+
+      document.getElementById('mov-producto').innerHTML = productos.map((p) =>
+        `<option value="${p.id}">${escaparHTML(p.codigo)} · ${escaparHTML(p.nombre)} (hay ${p.cantidad})</option>`
+      ).join('');
+    }
+
+    function pintarTabla() {
+      const tabla = document.getElementById('tabla');
+      const texto = document.getElementById('buscar').value.trim().toLowerCase();
+      const lista = productos.filter((p) =>
+        !texto || p.codigo.toLowerCase().includes(texto) || p.nombre.toLowerCase().includes(texto)
+      );
+      if (lista.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="5" class="vacio">Ningún producto coincide con la búsqueda.</td></tr>';
+        return;
+      }
+      tabla.innerHTML = lista.map((p) => {
         const bajo = p.cantidad < p.minimo;
         return `
           <tr>
@@ -147,11 +168,9 @@
             <td><span class="estado ${bajo ? 'pedir' : 'bien'}">${bajo ? 'Pedir más' : 'Bien'}</span></td>
           </tr>`;
       }).join('');
-
-      document.getElementById('mov-producto').innerHTML = productos.map((p) =>
-        `<option value="${p.id}">${escaparHTML(p.codigo)} · ${escaparHTML(p.nombre)} (hay ${p.cantidad})</option>`
-      ).join('');
     }
+
+    document.getElementById('buscar').addEventListener('input', pintarTabla);
 
     // ---------- Movimientos ----------
     const dialogoMov = document.getElementById('dialogo-movimiento');

@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Iniciar sesión · Inventario</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap">
   <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body>
   <div class="acceso">
     <div class="tarjeta-acceso">
-      <div class="candado" aria-hidden="true">🔒</div>
-      <h1>Inventario</h1>
+      <div class="candado" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+      <h1>Inventario UTH</h1>
       <p class="ayuda">Entra con tu correo y contraseña. Después te pediremos el código de tu celular.</p>
 
       <form id="formulario">
@@ -38,7 +38,7 @@
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
       const { data: nivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-      location.href = nivel.currentLevel === 'aal2' ? 'inventario.html' : 'verificar.html';
+      location.href = nivel.currentLevel === 'aal2' ? 'panel.html' : 'verificar.html';
     })();
 
     document.getElementById('formulario').addEventListener('submit', async (e) => {

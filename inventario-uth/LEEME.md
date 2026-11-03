@@ -5,9 +5,11 @@ Supabase (PostgreSQL, Auth, RLS, código de 6 dígitos) + páginas en HTML y Jav
 ## Archivos
 
 - `sql/esquema.sql`: tablas, triggers, permisos y políticas RLS.
+- `sql/mas_productos.sql`: 12 productos más con existencias iniciales.
 - `index.html`: correo y contraseña.
 - `verificar.html`: código de 6 dígitos (la primera vez muestra el QR).
-- `inventario.html`: productos, entradas y salidas.
+- `panel.html`: resumen con tarjetas de colores y gráficas.
+- `inventario.html`: productos, entradas y salidas, con buscador.
 - `movimientos.html`: bitácora de quién movió qué y cuándo.
 - `reportes.html`: productos por pedir y totales de 30 días.
 - `usuarios.html`: roles (solo admin).
